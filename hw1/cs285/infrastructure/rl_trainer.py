@@ -193,7 +193,7 @@ class RL_Trainer(object):
         # HINT: query the policy (using the get_action function) with paths[i]["observation"]
         # and replace paths[i]["action"] with these expert labels
         for path in paths:
-            path["action"] = expert_policy.get_action(path["observations"])
+            path["action"] = expert_policy.get_action(path["observation"]).detach().numpy()
         return paths
 
     ####################################
@@ -221,11 +221,13 @@ class RL_Trainer(object):
         if self.log_metrics:
 
             # returns, for logging
-            train_returns = [path["reward"].sum() for path in paths]
+            if paths != None:
+                train_returns = [path["reward"].sum() for path in paths]
             eval_returns = [eval_path["reward"].sum() for eval_path in eval_paths]
 
             # episode lengths, for logging
-            train_ep_lens = [len(path["reward"]) for path in paths]
+            if paths != None:
+                train_ep_lens = [len(path["reward"]) for path in paths]
             eval_ep_lens = [len(eval_path["reward"]) for eval_path in eval_paths]
 
             # decide what to log
@@ -236,18 +238,19 @@ class RL_Trainer(object):
             logs["Eval_MinReturn"] = np.min(eval_returns)
             logs["Eval_AverageEpLen"] = np.mean(eval_ep_lens)
 
-            logs["Train_AverageReturn"] = np.mean(train_returns)
-            logs["Train_StdReturn"] = np.std(train_returns)
-            logs["Train_MaxReturn"] = np.max(train_returns)
-            logs["Train_MinReturn"] = np.min(train_returns)
-            logs["Train_AverageEpLen"] = np.mean(train_ep_lens)
+            if paths != None:
+                logs["Train_AverageReturn"] = np.mean(train_returns)
+                logs["Train_StdReturn"] = np.std(train_returns)
+                logs["Train_MaxReturn"] = np.max(train_returns)
+                logs["Train_MinReturn"] = np.min(train_returns)
+                logs["Train_AverageEpLen"] = np.mean(train_ep_lens)
 
-            logs["Train_EnvstepsSoFar"] = self.total_envsteps
-            logs["TimeSinceStart"] = time.time() - self.start_time
+                logs["Train_EnvstepsSoFar"] = self.total_envsteps
+                logs["TimeSinceStart"] = time.time() - self.start_time
 
-            if itr == 0:
-                self.initial_return = np.mean(train_returns)
-            logs["Initial_DataCollection_AverageReturn"] = self.initial_return
+                if itr == 0:
+                    self.initial_return = np.mean(train_returns)
+                logs["Initial_DataCollection_AverageReturn"] = self.initial_return
 
             # perform the logging
             for key, value in logs.items():

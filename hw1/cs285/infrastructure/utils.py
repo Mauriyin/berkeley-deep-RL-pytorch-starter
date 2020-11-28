@@ -7,10 +7,8 @@ import scipy
 
 def sample_trajectory(env, policy, max_path_length, render=False, render_mode=("rgb_array")):
 
-    #next two lines is a fix for the error: "GLEW initalization error: Missing GL version"
-    #ignore if you do not recieve this error
-    #if render:
-    #    env.render(mode = "human")
+    if render:
+        env.render(mode = "human")
 
     # initialize env for the beginning of a new rollout
     ob = env.reset() # HINT: should be the output of resetting the env
@@ -47,7 +45,7 @@ def sample_trajectory(env, policy, max_path_length, render=False, render_mode=("
 
         # TODO end the rollout if the rollout ended
         # HINT: rollout can end due to done, or due to max_path_length
-        rollout_done = (done or max_path_length == steps) # HINT: this is either 0 or 1
+        rollout_done = (done or (max_path_length == steps)) # HINT: this is either 0 or 1
         terminals.append(rollout_done)
 
         if rollout_done:

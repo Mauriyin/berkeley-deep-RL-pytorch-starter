@@ -15,8 +15,16 @@ class MLP(nn.Module):
 
         self.discrete = discrete
 
-        #TODO -build the network architecture -can be taken from HW1
-        #HINT -build an nn.Modulelist() using the passed in parameters
+        # network architecture
+        self.mlp = nn.ModuleList()
+        self.mlp.append(nn.Linear(ob_dim, size)) #first hidden layer
+        self.mlp.append(activation)
+
+        for h in range(n_layers - 1): #additional hidden layers
+            self.mlp.append(nn.Linear(size, size))
+            self.mlp.append(activation)
+
+        self.mlp.append(nn.Linear(size, ac_dim)) #output layer, no activation function
 
         #if continuous define logstd variable
         if not self.discrete:
@@ -31,6 +39,12 @@ class MLP(nn.Module):
             return x
         else:
             return (x, self.logstd.exp())
+
+    def save(self, filepath):
+        torch.save(self.state_dict(), filepath)
+
+    def restore(self, filepath):
+        self.load_state_dict(torch.load(filepath))
 
 class MLPPolicy:
     def __init__(self,
@@ -72,8 +86,12 @@ class MLPPolicy:
     # query the neural net that's our 'policy' function, as defined by the policy_mlp above
     # query the policy with observation(s) to get selected action(s)
     def get_action(self, obs):
-        raise NotImplementedError
-        #implement similar to HW1
+        output = self.policy_mlp(torch.Tensor(obs).to(self.device))
+        if self.discrete:
+            action_probs = nn.functional.log_softmax(output).exp()
+            return torch.multinomial(action_probs, num_samples = 1).cpu().detach().numpy()[0]
+        else:
+            return torch.normal(output[0], output[1]).cpu().detach().numpy()
 
     def get_log_prob(self, network_outputs, actions_taken):
         actions_taken = torch.Tensor(actions_taken).to(self.device)
@@ -95,7 +113,7 @@ class MLPPolicyPG(MLPPolicy):
         logprob_pi = self.get_log_prob(policy_output, acs_na)
 
         #TODO Don't forget to zero out the gradient
-
+        self.optimizer.zero_grad()
         # TODO: define the loss that should be optimized when training a policy with policy gradient
         # HINT1: Recall that the expression that we want to MAXIMIZE
             # is the expectation over collected trajectories of:
@@ -103,7 +121,10 @@ class MLPPolicyPG(MLPPolicy):
         # HINT2: look at logprob_pi above
         # HINT3: don't forget that we need to MINIMIZE this self.loss
             # but the equation above is something that should be maximized
+        loss = torch.sum((-logprob_pi * torch.Tensor(adv_n).to(self.device)))
         #HINT4: Don't forget to propagate the loss backward
+        loss.backward()
+
 
         if self.nn_baseline:
             baseline_prediction = self.baseline_mlp(torch.Tensor(observations).to(self.device)).view(-1)
@@ -115,6 +136,7 @@ class MLPPolicyPG(MLPPolicy):
             # HINT3: Don't forget to propagate the loss backward
 
         #step the optimizer
+        self.optimizer.step()
         return loss
 
 #####################################################
